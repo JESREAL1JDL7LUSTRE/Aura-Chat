@@ -1,0 +1,204 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  //output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  AUDIO
+  VIDEO
+  SYSTEM_MESSAGE // For join/leave messages, etc.
+}
+
+// Enum for different notification types
+enum NotificationType {
+  NEW_MESSAGE
+  MENTION
+  GROUP_INVITE
+  CALL
+  READ_RECEIPT
+  OTHER
+}
+
+// User Model: Represents a user in the chat application
+// NextAuth.js requires these fields on the User model
+model User {
+  id              String         @id @default(cuid())
+  name            String?
+  email           String?        @unique
+  emailVerified   DateTime?      // Added for NextAuth.js
+  image           String?        // Added for NextAuth.js (profile picture URL)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  // Relations
+  accounts        Account[]      // Added for NextAuth.js
+  sessions        Session[]      // Added for NextAuth.js
+  sentMessages    Message[]      @relation("SenderMessages")
+  conversations   Participant[]
+  uploadedFiles   File[]         @relation("UploadedBy")
+  createdGroups   Group[]        @relation("GroupCreator")
+  notifications   Notification[] @relation("UserNotifications") // Renamed for clarity
+  Notification    Notification[] @relation("NotificationSender") // Keep if needed for sender
+}
+
+// NextAuth.js Models (Required for Prisma Adapter)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Conversation Model: Represents a chat conversation (either one-to-one or group)
+model Conversation {
+  id            String        @id @default(cuid())
+  name          String?       // Name for group chats, null for one-to-one chats
+  isGroup       Boolean       @default(false) // True for group chats, false for one-to-one
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  // Relations
+  messages      Message[]
+  participants  Participant[]
+  groupDetails  Group?        // One-to-one relation to Group model if it's a group chat
+
+  Notification Notification[]
+}
+
+// Participant Model: Join table for User and Conversation (many-to-many relationship)
+// Also stores participant-specific data like last read message
+model Participant {
+  userId            String
+  conversationId    String
+  joinedAt          DateTime      @default(now())
+  lastReadMessageId String?       // Optional: ID of the last message read by this participant
+  isAdmin           Boolean       @default(false) // True if participant is an admin in a group chat
+  // Relations
+  user              User          @relation(fields: [userId], references: [id])
+  conversation      Conversation  @relation(fields: [conversationId], references: [id])
+  // Composite primary key for unique participant entries in a conversation
+  @@id([userId, conversationId])
+  @@index([userId])
+  @@index([conversationId])
+}
+
+// Group Model: Stores specific details for group conversations
+model Group {
+  id             String       @id @default(cuid()) // Group ID, can be same as conversationId
+  conversationId String       @unique // Foreign key to the Conversation model
+  name           String       // Group name (redundant with Conversation.name but good for clarity/indexing)
+  description    String?
+  creatorId      String       // User who created the group
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  // Relations
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  creator        User         @relation("GroupCreator", fields: [creatorId], references: [id])
+
+  @@index([creatorId])
+}
+
+// Message Model: Represents a single message within a conversation
+model Message {
+  id             String      @id @default(cuid())
+  content        String?     // Message text content (optional if it's an image/file message)
+  type           MessageType @default(TEXT) // Type of message (text, image, file, etc.)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  // Relations
+  senderId       String
+  sender         User        @relation("SenderMessages", fields: [senderId], references: [id])
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  // For message threading (replies)
+  parentId       String?     // Optional: ID of the message this message is replying to
+  parentMessage  Message?    @relation("MessageReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies        Message[]   @relation("MessageReplies")
+  // For multimedia and file sharing
+  fileId         String?     @unique // Optional: ID of the associated file (one-to-one)
+  file           File?       @relation(fields: [fileId], references: [id])
+  // Indexes for efficient querying
+  @@index([conversationId, createdAt]) // To get messages in a conversation, ordered by time
+  @@index([senderId])
+  @@index([parentId])
+  Notification Notification[]
+}
+
+// File Model: Stores information about uploaded files (images, documents, videos)
+model File {
+  id           String    @id @default(cuid())
+  filename     String
+  mimetype     String    // e.g., "image/jpeg", "application/pdf"
+  url          String    // URL where the file is stored (e.g., S3, Google Cloud Storage)
+  size         Int       // File size in bytes
+  createdAt    DateTime  @default(now())
+  uploadedById String
+  // Relations
+  uploadedBy   User      @relation("UploadedBy", fields: [uploadedById], references: [id])
+  message      Message?  // One-to-one relation: a file can be attached to one message
+}
+
+// Notification Model: For storing user notifications
+model Notification {
+  id          String         @id @default(cuid())
+  userId      String         // User who receives the notification
+  type        NotificationType @default(NEW_MESSAGE)
+  content     String?        // Optional: specific text for the notification
+  isRead      Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  // Optional relations to the source of the notification
+  messageId   String?
+  message     Message?       @relation(fields: [messageId], references: [id])
+  senderId    String?        // Who triggered the notification (e.g., sender of a new message)
+  sender      User?          @relation("NotificationSender", fields: [senderId], references: [id])
+  conversationId String?
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+  // Relations
+  user        User           @relation("UserNotifications", fields: [userId], references: [id])
+
+  @@index([userId, createdAt]) // For efficient retrieval of user's notifications
+  @@index([messageId])
+  @@index([senderId])
+}
