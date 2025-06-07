@@ -11,8 +11,8 @@ const SignInButton = () => {
   if (session && session.user) {
     return (
       <div className="flex items-center justify-center gap-3">
-        <ProfileImage width={40} height={40} />
-        <p className="text-black" onClick={() => {router.push('/profile')}}>
+        <ProfileImage width={40} height={40} src={session.user.image ?? undefined} />
+        <p className="text-black" onClick={() => {router.push(`/${session.user.id}`)}}>
           {session.user.name}</p>
         <Button
           className="bg-black text-white hover:bg-gray-700"

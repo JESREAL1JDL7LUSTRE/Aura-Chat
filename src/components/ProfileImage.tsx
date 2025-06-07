@@ -1,20 +1,17 @@
-
 import React from 'react'
-import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 
 interface Props {
     width?: number;
     height?: number;
+    src?: string;
 }
 
 const ProfileImage = (props: Props) => {
-    const { data: Session } = useSession()
-
   return (
     <div>
       <Image
-        src={Session?.user?.image || '/default-profile.png'}
+        src={props.src || '/default-profile.png'}
         alt="Profile Image"
         width={props.width || 50}
         height={props.height || 50}

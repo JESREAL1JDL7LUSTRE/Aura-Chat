@@ -5,6 +5,7 @@ import Providers from "@/components/Buttons/Providers";
 import DesktopNav from "@/components/Navbar/DesktopNav";
 import MobileNav from "@/components/Navbar/MobileNav";
 import Friends from "@/components/Friends/Friends";
+import QueryProvider from "./queryProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +32,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
+        <QueryProvider>
+          <Providers>
           <DesktopNav />
           <MobileNav />
           {children}
@@ -39,6 +41,7 @@ export default function RootLayout({
             <Friends/>
           </div>
           </Providers>
+          </QueryProvider>
       </body>
     </html>
   );
