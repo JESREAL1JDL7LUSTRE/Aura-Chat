@@ -23,7 +23,7 @@ const AddFriend = async () => {
 
   if (!users || users.length === 0) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center">
         <p className="text-gray-600">No users found.</p>
       </div>
     );
