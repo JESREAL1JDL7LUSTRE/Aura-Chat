@@ -4,8 +4,8 @@ import "./globals.css";
 import Providers from "@/components/Buttons/Providers";
 import DesktopNav from "@/components/Navbar/DesktopNav";
 import MobileNav from "@/components/Navbar/MobileNav";
-import Friends from "@/components/Friends/Friends";
 import QueryProvider from "./queryProvider";
+import Friends from "@/components/Friends/Friends";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

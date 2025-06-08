@@ -1,28 +1,31 @@
+"use client";
 import React from 'react'
 import Image from 'next/image'
 import { Button } from '../ui/button';
+import { useRouter } from 'next/navigation';
+import AddToFriendsList from '../Buttons/AddToFriendsList';
 
-interface Props {
-    img ?: string;
-    name ?: string;
+interface User {
+  id?: string;
+  name?: string;
+  img?: string;
 }
 
-const PeopleCard = (props: Props) => {
+const PeopleCard = (user: User) => {
+  const router = useRouter();
   return (
     <div className="p-4 bg-white shadow-md rounded-lg w-full max-w-xs text-center">
       <div className="flex justify-center mb-4">
         <Image
-            src={props.img || '/Profiles/noProfiles.png'}
-            className="rounded-full"
-            alt={props.name || 'User Avatar'}
+            src={user.img || '/Profiles/noProfiles.png'}
+            className="rounded-full hover:scale-105 transition-transform duration-300"
+            alt={user.name || 'User Avatar'}
             height={100}
             width={100}
-        />
+            onClick={() => {router.push(`/${user.id}`)}}/>
         </div>
-        <h2 className="text-lg font-semibold">{props.name || 'Sample Name'}</h2>
-        <Button variant={'ghost'} className="mt-4 w-full flex items-center justify-center hover:bg-gray-200">
-            <span className="text-sm">Add Friend</span>
-        </Button>
+        <h2 className="text-lg font-semibold">{user.name || 'Sample Name'}</h2>
+        <AddToFriendsList id={user.id || ''}/>
     </div>
   )
 }

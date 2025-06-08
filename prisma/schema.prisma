@@ -20,7 +20,11 @@ enum MessageType {
   FILE
   AUDIO
   VIDEO
-  SYSTEM_MESSAGE // For join/leave messages, etc.
+  SYSTEM_MESSAGE
+  VOICE_NOTE
+  LOCATION
+  STICKER
+  GIF
 }
 
 // Enum for different notification types
@@ -31,6 +35,34 @@ enum NotificationType {
   CALL
   READ_RECEIPT
   OTHER
+  SENT_FRIEND_REQUEST
+  FRIEND_REQUEST_ACCEPTED
+  TYPING
+  REACTION
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+enum UserStatus {
+  ONLINE
+  OFFLINE
+  AWAY
+  BUSY
+  INVISIBLE
+}
+
+enum ConversationPermission {
+  SEND_MESSAGES
+  ADD_MEMBERS
+  REMOVE_MEMBERS
+  EDIT_GROUP_INFO
+  DELETE_MESSAGES
+  PIN_MESSAGES
 }
 
 // User Model: Represents a user in the chat application
@@ -43,6 +75,15 @@ model User {
   image           String?        // Added for NextAuth.js (profile picture URL)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+  
+  // Additional user fields
+  username        String?        @unique
+  bio             String?
+  phoneNumber     String?        @unique
+  status          UserStatus     @default(OFFLINE)
+  lastSeen        DateTime?
+  isActive        Boolean        @default(true)
+  
   // Relations
   accounts        Account[]      // Added for NextAuth.js
   sessions        Session[]      // Added for NextAuth.js
@@ -50,8 +91,24 @@ model User {
   conversations   Participant[]
   uploadedFiles   File[]         @relation("UploadedBy")
   createdGroups   Group[]        @relation("GroupCreator")
-  notifications   Notification[] @relation("UserNotifications") // Renamed for clarity
-  Notification    Notification[] @relation("NotificationSender") // Keep if needed for sender
+  notifications   Notification[] @relation("UserNotifications")
+  sentNotifications Notification[] @relation("NotificationSender")
+
+  sentFriendRequests     Friends[] @relation("UserFriends")
+  receivedFriendRequests Friends[] @relation("FriendOf")
+  
+  // Message reactions
+  reactions       MessageReaction[]
+  
+  // Typing indicators
+  typingIndicators TypingIndicator[]
+  
+  // User settings
+  settings        UserSettings?
+
+  @@index([username])
+  @@index([phoneNumber])
+  @@index([status])
 }
 
 // NextAuth.js Models (Required for Prisma Adapter)
@@ -92,6 +149,21 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+// User Settings Model: For storing user preferences
+model UserSettings {
+  id                    String  @id @default(cuid())
+  userId                String  @unique
+  notificationsEnabled  Boolean @default(true)
+  soundEnabled          Boolean @default(true)
+  readReceipts          Boolean @default(true)
+  onlineStatus          Boolean @default(true)
+  darkMode              Boolean @default(false)
+  language              String  @default("en")
+  timezone              String?
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 // Conversation Model: Represents a chat conversation (either one-to-one or group)
 model Conversation {
   id            String        @id @default(cuid())
@@ -99,12 +171,19 @@ model Conversation {
   isGroup       Boolean       @default(false) // True for group chats, false for one-to-one
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  lastMessageAt DateTime?     // When the last message was sent
+  isArchived    Boolean       @default(false)
+  isPinned      Boolean       @default(false)
+  
   // Relations
   messages      Message[]
   participants  Participant[]
   groupDetails  Group?        // One-to-one relation to Group model if it's a group chat
+  notifications Notification[]
+  typingIndicators TypingIndicator[]
 
-  Notification Notification[]
+  @@index([lastMessageAt])
+  @@index([isArchived])
 }
 
 // Participant Model: Join table for User and Conversation (many-to-many relationship)
@@ -113,31 +192,43 @@ model Participant {
   userId            String
   conversationId    String
   joinedAt          DateTime      @default(now())
+  leftAt            DateTime?     // When participant left the conversation
   lastReadMessageId String?       // Optional: ID of the last message read by this participant
   isAdmin           Boolean       @default(false) // True if participant is an admin in a group chat
+  isMuted           Boolean       @default(false) // If user muted this conversation
+  permissions       ConversationPermission[] // What this participant can do
+  
   // Relations
-  user              User          @relation(fields: [userId], references: [id])
-  conversation      Conversation  @relation(fields: [conversationId], references: [id])
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation      Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
   // Composite primary key for unique participant entries in a conversation
   @@id([userId, conversationId])
   @@index([userId])
   @@index([conversationId])
+  @@index([lastReadMessageId])
 }
 
 // Group Model: Stores specific details for group conversations
 model Group {
-  id             String       @id @default(cuid()) // Group ID, can be same as conversationId
+  id             String       @id @default(cuid())
   conversationId String       @unique // Foreign key to the Conversation model
-  name           String       // Group name (redundant with Conversation.name but good for clarity/indexing)
+  name           String       // Group name
   description    String?
+  avatar         String?      // Group profile picture URL
+  inviteCode     String?      @unique // Optional invite code for joining group
+  maxMembers     Int?         @default(256) // Maximum number of members
+  isPublic       Boolean      @default(false) // Whether group is discoverable
   creatorId      String       // User who created the group
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  
   // Relations
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   creator        User         @relation("GroupCreator", fields: [creatorId], references: [id])
 
   @@index([creatorId])
+  @@index([inviteCode])
 }
 
 // Message Model: Represents a single message within a conversation
@@ -147,58 +238,141 @@ model Message {
   type           MessageType @default(TEXT) // Type of message (text, image, file, etc.)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+  editedAt       DateTime?   // When message was last edited
+  isDeleted      Boolean     @default(false)
+  isPinned       Boolean     @default(false)
+  
   // Relations
   senderId       String
   sender         User        @relation("SenderMessages", fields: [senderId], references: [id])
   conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
   // For message threading (replies)
   parentId       String?     // Optional: ID of the message this message is replying to
   parentMessage  Message?    @relation("MessageReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   replies        Message[]   @relation("MessageReplies")
+  
   // For multimedia and file sharing
   fileId         String?     @unique // Optional: ID of the associated file (one-to-one)
   file           File?       @relation(fields: [fileId], references: [id])
+  
+  // Message reactions and notifications
+  reactions      MessageReaction[]
+  notifications  Notification[]
+  
   // Indexes for efficient querying
   @@index([conversationId, createdAt]) // To get messages in a conversation, ordered by time
   @@index([senderId])
   @@index([parentId])
-  Notification Notification[]
+  @@index([isDeleted])
+  @@index([isPinned])
+}
+
+// Message Reactions Model: For emoji reactions to messages
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String   // The emoji or reaction type
+  createdAt DateTime @default(now())
+  
+  // Relations
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([messageId, userId, emoji]) // User can only react once with same emoji per message
+  @@index([messageId])
+  @@index([userId])
+}
+
+// Typing Indicator Model: For showing when users are typing
+model TypingIndicator {
+  id             String       @id @default(cuid())
+  userId         String
+  conversationId String
+  createdAt      DateTime     @default(now())
+  expiresAt      DateTime     // Auto-expire typing indicators
+  
+  // Relations
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, conversationId]) // User can only have one typing indicator per conversation
+  @@index([conversationId])
+  @@index([expiresAt])
 }
 
 // File Model: Stores information about uploaded files (images, documents, videos)
 model File {
   id           String    @id @default(cuid())
   filename     String
+  originalName String?   // Original filename when uploaded
   mimetype     String    // e.g., "image/jpeg", "application/pdf"
   url          String    // URL where the file is stored (e.g., S3, Google Cloud Storage)
+  thumbnailUrl String?   // Thumbnail URL for images/videos
   size         Int       // File size in bytes
+  width        Int?      // For images/videos
+  height       Int?      // For images/videos
+  duration     Int?      // For audio/video files (in seconds)
   createdAt    DateTime  @default(now())
   uploadedById String
+  isPublic     Boolean   @default(false) // Whether file is publicly accessible
+  
   // Relations
   uploadedBy   User      @relation("UploadedBy", fields: [uploadedById], references: [id])
   message      Message?  // One-to-one relation: a file can be attached to one message
+  
+  @@index([uploadedById])
+  @@index([mimetype])
+  @@index([size])
 }
 
 // Notification Model: For storing user notifications
 model Notification {
-  id          String         @id @default(cuid())
-  userId      String         // User who receives the notification
+  id          String           @id @default(cuid())
+  userId      String           // User who receives the notification
   type        NotificationType @default(NEW_MESSAGE)
-  content     String?        // Optional: specific text for the notification
-  isRead      Boolean        @default(false)
-  createdAt   DateTime       @default(now())
+  title       String?          // Notification title
+  content     String?          // Optional: specific text for the notification
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  expiresAt   DateTime?        // Optional expiration date
+  
   // Optional relations to the source of the notification
-  messageId   String?
-  message     Message?       @relation(fields: [messageId], references: [id])
-  senderId    String?        // Who triggered the notification (e.g., sender of a new message)
-  sender      User?          @relation("NotificationSender", fields: [senderId], references: [id])
+  messageId      String?
+  message        Message?      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  senderId       String?       // Who triggered the notification
+  sender         User?         @relation("NotificationSender", fields: [senderId], references: [id])
   conversationId String?
-  conversation Conversation? @relation(fields: [conversationId], references: [id])
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
   // Relations
-  user        User           @relation("UserNotifications", fields: [userId], references: [id])
+  user        User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt]) // For efficient retrieval of user's notifications
+  @@index([userId, isRead])    // For unread notifications
   @@index([messageId])
   @@index([senderId])
+  @@index([expiresAt])
+}
+
+// Friends Model: For managing friend relationships
+model Friends {
+  id          String           @id @default(cuid())
+  userId      String
+  friendId    String
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  blockedAt   DateTime?        // When the friendship was blocked
+  acceptedAt  DateTime?        // When friend request was accepted
+
+  // Relations
+  user        User             @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend      User             @relation("FriendOf", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId]) // Ensure a unique friendship relationship
+  @@index([userId, status])
+  @@index([friendId, status])
 }

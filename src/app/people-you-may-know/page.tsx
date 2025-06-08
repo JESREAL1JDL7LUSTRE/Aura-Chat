@@ -2,9 +2,9 @@ import AddFriend from '@/components/Friends/AddFriend'
 import React from 'react'
 
 const peopleYouMayKnow = () => {
+
   return (
-    <div>
-      <h1>People You May Know</h1>
+    <div className="flex flex-col justify-between p-4">
       <AddFriend />
     </div>
   )
