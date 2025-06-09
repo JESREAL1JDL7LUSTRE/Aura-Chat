@@ -4,12 +4,12 @@ import React from 'react';
 import { Button } from '../ui/button';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import useAddFrends from '@/app/api/access/addFrends';
+import useAddFriends from '@/app/api/access/addFrends';
 
 const AddToFriendsList = ({ id }: { id: string }) => {
   const router = useRouter();
   const { data: session } = useSession();
-  const { mutate: addFriend, isPending } = useAddFrends();
+  const { mutate: addFriend, isPending } = useAddFriends();
 
   const handleAddFriend = () => {
     if (!id) return;

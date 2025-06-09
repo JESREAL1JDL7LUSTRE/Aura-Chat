@@ -11,6 +11,18 @@ export default withAuth(
       return NextResponse.redirect(new URL("/api/auth/signin", req.url));
     }
 
+    // Check if user is trying to access notification page
+    const notificationMatch = req.nextUrl.pathname.match(/^\/notification\/(.+)$/);
+    if (notificationMatch) {
+      const requestedUserId = notificationMatch[1];
+      const currentUserId = req.nextauth.token.sub; // User ID from token
+      
+      // If trying to access someone else's notifications, redirect to their own
+      if (requestedUserId !== currentUserId) {
+        return NextResponse.redirect(new URL(`/notification/${currentUserId}`, req.url));
+      }
+    }
+
     return NextResponse.next();
   },
   {
