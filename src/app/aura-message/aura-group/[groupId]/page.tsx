@@ -1,11 +1,12 @@
 import React from 'react'
 
-const groupId = () => {
+
+export default async function groupId(params: Promise<{ groupId: string }>) {
+  const { groupId } = await params;
   return (
     <div>
-      
+      group {groupId}
     </div>
   )
 }
 
-export default groupId

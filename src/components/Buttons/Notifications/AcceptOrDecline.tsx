@@ -7,7 +7,7 @@ import { useFriendRequestAction } from '@/hooks/useFriendHooks';
 
 interface AcceptOrDeclineProps {
     notificationId: string;
-    senderId: string; // The ID of the person who sent the friend request
+    senderId: string;
 }
 
 const AcceptOrDecline: React.FC<AcceptOrDeclineProps> = ({ 
@@ -59,7 +59,7 @@ const AcceptOrDecline: React.FC<AcceptOrDeclineProps> = ({
                 disabled={isLoading}
                 aria-label="Accept friend request"
             >
-                {isLoading ? 'Processing...' : 'Accept'}
+                {'Accept'}
             </Button>
             <Button 
                 variant="ghost" 
@@ -68,7 +68,7 @@ const AcceptOrDecline: React.FC<AcceptOrDeclineProps> = ({
                 disabled={isLoading}
                 aria-label="Decline friend request"
             >
-                {isLoading ? 'Processing...' : 'Decline'}
+                {'Decline'}
             </Button>
         </div>
     );

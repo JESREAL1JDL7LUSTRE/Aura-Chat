@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react"
 import React from 'react'
 import Image from 'next/image'
 import FriendsList from "@/app/api/access/getFriends"
+import Link from "next/link"
 
 type Friend = {
   id: string;
@@ -29,7 +30,15 @@ const Friends = () => {
   }
 
   if (status !== "authenticated") {
-    return null;
+    return (
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white shadow-md p-4 justify-end flex">
+        <div className='p-4 bg-white shadow-md rounded-lg w-full max-w-xs'>
+          <div>
+            <p className='text-gray-500 text-sm'><Link href={"/api/auth/signin"} className="text-blue-500 underline">Sign In</Link> to see friends</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const friends = friendsData || [];

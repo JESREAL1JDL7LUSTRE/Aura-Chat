@@ -1,11 +1,12 @@
 import React from 'react'
 
-const userId = () => {
+export default async function userId(params: Promise<{ userId: string }>) {
+  const { userId } = await params;
+  
   return (
     <div>
-      
+      usertouser {userId}
     </div>
   )
 }
 
-export default userId
