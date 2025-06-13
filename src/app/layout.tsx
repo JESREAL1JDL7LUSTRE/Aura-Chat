@@ -37,9 +37,9 @@ export default function RootLayout({
           <DesktopNav />
           <MobileNav />
           {children}
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white shadow-md p-4 justify-end flex">
+          {/* <div className="fixed bottom-0 left-0 right-0 z-50 shadow-md p-4 justify-end flex">
             <Friends/>
-          </div>
+          </div> */}
           </Providers>
           </QueryProvider>
       </body>
