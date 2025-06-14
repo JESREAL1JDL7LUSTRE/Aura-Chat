@@ -5,6 +5,7 @@ import React from 'react'
 import Image from 'next/image'
 import FriendsList from "@/app/api/access/getFriends"
 import Link from "next/link"
+import { useRouter } from "next/navigation";
 
 type Friend = {
   id: string;
@@ -20,7 +21,7 @@ const Friends = () => {
   const {data: session, status } = useSession()
   const { data: user, isLoading: userLoading } = useGetUserByID(session?.user?.id || '')
   const { data: friendsData, isLoading: friendsLoading, error } = FriendsList(user?.id || '');
-
+  const router = useRouter();
   if (userLoading || (friendsLoading && user?.id)) {
     return (
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white shadow-md p-4 justify-end flex">
@@ -58,6 +59,7 @@ const Friends = () => {
                 className='w-10 h-10 rounded-full' 
                 width={40} 
                 height={40} 
+                onClick={() => router.push(`/aura-message/${friend.id}`)}
               />
               <div>
                 <p className='font-semibold'>{friend.name}</p>

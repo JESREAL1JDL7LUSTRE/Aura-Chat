@@ -5,7 +5,7 @@ import Providers from "@/components/Buttons/Providers";
 import DesktopNav from "@/components/Navbar/DesktopNav";
 import MobileNav from "@/components/Navbar/MobileNav";
 import QueryProvider from "./queryProvider";
-import Friends from "@/components/Friends/Friends";
+import FriendsWrapper from "@/components/Friends/FriendWraper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,9 +37,7 @@ export default function RootLayout({
           <DesktopNav />
           <MobileNav />
           {children}
-          {/* <div className="fixed bottom-0 left-0 right-0 z-50 shadow-md p-4 justify-end flex">
-            <Friends/>
-          </div> */}
+          <FriendsWrapper />
           </Providers>
           </QueryProvider>
       </body>
