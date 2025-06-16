@@ -2,10 +2,8 @@ import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { Phone, Video, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ChatHeaderProps } from '@/types/type';
 
-interface ChatHeaderProps {
-  otherUser: any;
-}
 
 export default function ChatHeader({ otherUser }: ChatHeaderProps) {
   const getStatusText = () => {

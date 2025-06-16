@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Providers from "@/components/Buttons/Providers";
 import QueryProvider from "../queryProvider";
-import AllMessages from "@/components/Chat/AllMessages";
+import AllMessagesWrapper from "@/components/Friends/AllMessagesWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,7 +24,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+
 return (
+
  <html lang="en">
    <body
      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -33,7 +36,7 @@ return (
        <Providers>
          <div className="flex h-[calc(100vh-5rem)]">
            <div className="w-64 bg-gray-100 border-r">
-             <AllMessages />
+             <AllMessagesWrapper />
            </div>
            <div className="flex-1">
              {children}

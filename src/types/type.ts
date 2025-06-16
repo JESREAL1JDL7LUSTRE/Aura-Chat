@@ -1,28 +1,42 @@
-// Updated interface to match your database schema
-export interface NotificationData {
-  id: string;
-  type: 'SENT_FRIEND_REQUEST' | 'FRIEND_REQUEST_ACCEPTED' | 'NEW_MESSAGE' | 'MENTION' | 'GROUP_INVITE' | 'CALL' | 'READ_RECEIPT';
-  title: string | null;
-  content: string | null;
-  isRead: boolean;
-  createdAt: Date;
-  userId: string;
-  senderId: string | null;
-  messageId: string | null;
-  conversationId: string | null;
-  sender: {
+import { Conversation, Message } from "@/generated/prisma";
+import { User } from "@/generated/prisma";
+
+export type ConversationWithMessages = Conversation & {
+  messages: (Message & {
+    sender: Pick<User, 'id' | 'name' | 'image'>;
+    file: {
+      id: string;
+      url: string;
+      name: string;
+      type: string;
+      size: number;
+    } | null;
+    reactions: {
+      user: Pick<User, 'id' | 'name'>;
+    }[];
+    parentMessage: {
+      sender: Pick<User, 'id' | 'name'>;
+    } | null;
+  })[];
+  participants: {
+    user: Pick<User, 'id' | 'name' | 'image'>;
+  }[];
+};
+
+
+export type UserStatus = 'ONLINE' | 'AWAY' | 'BUSY' | 'OFFLINE' | 'INVISIBLE';
+
+export type ChatHeaderProps = {
+  otherUser: {
     id: string;
-    name: string | null;
-    username: string | null;
-    image: string | null;
-  } | null;
-  message: {
-    id: string;
-    content: string | null;
-  } | null;
-  conversation: {
-    id: string;
-    name: string | null;
-    isGroup: boolean;
-  } | null;
-}
+    name?: string;
+    username?: string;
+    image?: string;
+    status: UserStatus;
+    lastSeen?: string | null;
+    bio?: string;
+  };
+  conversation: ConversationWithMessages;
+  currentUserId: string;
+};
+

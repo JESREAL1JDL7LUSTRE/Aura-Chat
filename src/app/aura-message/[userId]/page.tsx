@@ -6,6 +6,7 @@ import ChatHeader from '@/components/Chat/ChatHeader';
 import ChatContainer from '@/components/Chat/ChatContainer';
 import MessageList from '@/components/Chat/MessageList';
 import MessageInput from '@/components/Chat/MessageInput';
+import { ChatHeaderProps } from '@/types/type';
 
 interface OneToOneChatPageProps {
   params: {
@@ -42,6 +43,16 @@ export default async function OneToOneChatPage({ params }: OneToOneChatPageProps
   if (!otherUser) {
     notFound();
   }
+
+const cleanedUser: ChatHeaderProps['otherUser'] = {
+  id: otherUser.id,
+  name: otherUser.name ?? undefined,
+  username: otherUser.username ?? undefined,
+  image: otherUser.image ?? undefined,
+  status: otherUser.status,
+  lastSeen: otherUser.lastSeen ? otherUser.lastSeen.toISOString() : undefined,
+  bio: otherUser.bio ?? undefined,
+};
 
   // Find or create conversation between the two users
   let conversation = await prisma.conversation.findFirst({
@@ -182,7 +193,7 @@ export default async function OneToOneChatPage({ params }: OneToOneChatPageProps
     <div className="flex flex-col h-full bg-gray-50">
       <ChatHeader 
         conversation={conversation}
-        otherUser={otherUser}
+        otherUser={cleanedUser}
         currentUserId={session.user.id}
       />
       
